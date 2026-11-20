@@ -85,11 +85,16 @@ def _ghidra(stage, arguments, folder, log, lock):
 def _build(identity, folder, record, lock):
     (folder / "ghidra").mkdir()
     with (folder / "prepare.log").open("ab") as log:
-        _ghidra("analysis", ["-import", identity.source], folder, log, lock)
+        script = ["-noanalysis", "-scriptPath", GHIDRA_SCRIPTS, "-postScript"]
+        # Ghidra chooses its analyzers when it opens a program, so the compiler is set in a run before the analysis.
+        recognize = ["-import", identity.source, *script, "RecognizeCompiler.java", folder]
+        _ghidra("analysis", recognize, folder, log, lock)
+        # Ghidra exits with 0 when a script fails, so only a script's own last report proves that it finished.
+        if not (folder / "compiler.txt").exists():
+            raise RuntimeError("Ghidra produced no compiler report")
+        _ghidra("analysis", ["-process", identity.source.name], folder, log, lock)
         _write_record(folder, record | {"stage": "export"})
-        export = ["-process", "-noanalysis", "-readOnly", "-scriptPath", GHIDRA_SCRIPTS]
-        _ghidra("export", [*export, "-postScript", "ExportTree.java", folder], folder, log, lock)
-    # Ghidra exits with 0 when a script fails, so only the script's own last report proves the export.
+        _ghidra("export", ["-process", "-readOnly", *script, "ExportTree.java", folder], folder, log, lock)
     report = trees.export_record(folder)
     if not report:
         raise RuntimeError("Ghidra produced no export")
@@ -104,7 +109,7 @@ def _build(identity, folder, record, lock):
         "failed": report["failed"],
     }
     (folder / "tree.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
-    for name in ("settings", "cache", "export.state", "prepare.json"):
+    for name in ("settings", "cache", "compiler.txt", "export.state", "prepare.json"):
         _remove(folder / name)
     _retry(lambda: folder.rename(folder.with_name(identity.name)))
 

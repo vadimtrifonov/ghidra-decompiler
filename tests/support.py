@@ -21,18 +21,23 @@ _kernel32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
 _SYNCHRONIZE = 0x00100000
 _WAIT_TIMEOUT = 0x102
 
-# Stands in for Ghidra's launcher: the import does nothing, the export writes one file and one report.
+# Stands in for Ghidra's launcher: the import reports a compiler, the analysis does nothing, the export writes one
+# file and one report. STUB_REPORTS names the reports that it writes: none, a partial export, or a complete one.
 _STUB_LAUNCHER = r"""@echo off
 :next
 if "%~1"=="" exit /b 0
-if "%~1"=="-postScript" goto export
+if "%~1"=="RecognizeCompiler.java" goto compiler
+if "%~1"=="ExportTree.java" goto export
 shift
 goto next
+:compiler
+if not "%STUB_REPORTS%"=="none" (>"%~2\compiler.txt" echo unknown)
+exit /b 0
 :export
-mkdir "%~3\functions\14000"
->"%~3\functions\14000\%STUB_EXPORT%.c" echo // function 140001000  FUN_140001000
-if "%STUB_EXPORT%"=="complete" (set "REPORT=complete 1 1 0 stub") else (set "REPORT=running 1 10 0")
->"%~3\export.state" echo %REPORT%
+mkdir "%~2\functions\14000"
+>"%~2\functions\14000\%STUB_REPORTS%.c" echo // function 140001000  FUN_140001000
+if "%STUB_REPORTS%"=="complete" (set "REPORT=complete 1 1 0 stub") else (set "REPORT=running 1 10 0")
+>"%~2\export.state" echo %REPORT%
 exit /b 0
 """
 
@@ -83,6 +88,15 @@ def with_encrypted_code(source, target):
     data[offset : offset + size] = random.Random(0).randbytes(size)
     target.write_bytes(data)
     return target, size
+
+
+def without_dos_stub(source, target):
+    """Copy a PE file with zeros in place of its DOS stub, as Steamless leaves the file that it unpacks."""
+    data = bytearray(Path(source).read_bytes())
+    header = struct.unpack_from("<I", data, 0x3C)[0]
+    data[0x40:header] = bytes(header - 0x40)
+    target.write_bytes(data)
+    return target
 
 
 def pointer_reader(path):

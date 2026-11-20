@@ -23,6 +23,7 @@ from support import (
     wait_for,
     watch,
     with_encrypted_code,
+    without_dos_stub,
 )
 
 from scripts.identity import encrypted_code, identify, version_label
@@ -149,14 +150,19 @@ class OfflineTests(DecompilerTests):
 
 
 class WorkerTests(DecompilerTests):
-    def test_export_without_its_last_report_is_not_published_and_a_retry_starts_over(self):
+    def test_run_without_a_script_report_is_not_published_and_a_retry_starts_over(self):
         ghidra = stub_ghidra(self.folder / "ghidra stub")
 
-        def prepare(export):
-            decompiler("prepare", self.FILE, self.root, GHIDRA_INSTALL_DIR=str(ghidra), STUB_EXPORT=export)
+        def prepare(reports):
+            decompiler("prepare", self.FILE, self.root, GHIDRA_INSTALL_DIR=str(ghidra), STUB_REPORTS=reports)
             return self.run_ended(60)
 
-        # The stub exits with 0, as Ghidra does when its export script fails.
+        # The stub exits with 0, as Ghidra does when one of its scripts fails.
+        report = prepare("none")
+        self.assertEqual(report["status"], "failed", report)
+        self.assertEqual(report["error"], "Ghidra produced no compiler report")
+        self.assertFalse((Path(report["log"]).parent / "functions").exists())
+
         report = prepare("partial")
         self.assertEqual(report["status"], "failed", report)
         self.assertEqual(report["error"], "the export stopped after 1 of 10 functions")
@@ -187,6 +193,8 @@ class GhidraTests(DecompilerTests):
     FILE = SYSTEM / "System32" / "msvcp140.dll"
 
     def test_tree_holds_every_function_and_agrees_with_its_tables(self):
+        # Ghidra reads the compiler from the DOS stub, and without the compiler it finds no vtables by itself.
+        self.FILE = without_dos_stub(self.FILE, self.folder / self.FILE.name)
         self.assertEqual(decompiler("prepare", self.FILE, self.root)[1]["status"], "preparing")
         report = self.run_ended(600)
         self.assertEqual(report["status"], "ready", report)
