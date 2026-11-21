@@ -217,7 +217,10 @@ class GhidraTests(DecompilerTests):
         self.assertEqual(sorted(files), [address for address, *_ in index])
         # Ghidra's C arrives with CRLF line ends.
         for path in (tree / "index.tsv", tree / "vtables.tsv", tree / "tree.json", *files.values()):
-            self.assertNotIn(b"\r", path.read_bytes(), path)
+            data = path.read_bytes()
+            self.assertNotIn(b"\r", data, path)
+            # Unreachable code stays in the C; the decompiler's built-in settings remove it from three functions here.
+            self.assertNotIn(b"Removing unreachable block", data, path)
 
         slots, vtables = defaultdict(list), defaultdict(list)
         for vtable, owner, slot, function in table("vtables.tsv"):

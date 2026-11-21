@@ -59,7 +59,7 @@ Keep no shell or program inside the run's folder, where `log` is, or the run fai
 
 | File | Functions | Analysis | Export | Memory at peak | Tree on disk |
 |---|---|---|---|---|---|
-| A game executable, 102 MB | 202,742 | 45 min | 51 min | 15 GB in analysis, 12 GB in export | 2.6 GB |
+| A game executable, 102 MB | 202,742 | 45 min | 41 min | 15 GB in analysis, 12 GB in export | 2.6 GB |
 | A system DLL, 0.6 MB | 1,604 | 30 s | 25 s | not measured | 21 MB |
 
 Measured on a Ryzen 7 9800X3D with 64 GB of memory.
@@ -109,6 +109,10 @@ Names are those that Ghidra derives: imports, exports, RTTI class names, and rec
 Every other function is `FUN_<address>`; `FUN_141963f20` is `functions\14196\141963f20.c`.
 `thunk_FUN_<address>` is a function that only jumps to `FUN_<address>`; its own address is in `index.tsv`, and several thunks can have the same name.
 `DAT_<address>` and `PTR_<name>_<address>` are data at that address.
+A read of read-only data shows as the value instead; a float that the decompiler did not recognize shows as its bits, such as `0x3f800000` for 1.0.
+
+A condition shown as `if (true)` or `if (false)` is one that the decompiler judged constant, and the side not taken is code that it judged unreachable.
+The judgment is wrong where the decompiler lost track of what a call changes.
 
 An address has no function file when it lies inside a function or in code that Ghidra did not make a function.
 Disassemble such an address instead.
@@ -116,4 +120,4 @@ The file of a function that Ghidra could not decompile holds `// decompile faile
 
 A text search for a function's name finds the functions that call it.
 It also finds their thunks, because a thunk's file holds the C of the function it jumps to.
-It misses a call that the decompiler left out: the caller failed to decompile, or its file has a `WARNING` about an unreachable block or a jump table.
+It misses a call that the decompiler left out: the caller failed to decompile, or its file has a `WARNING` about a jump table.

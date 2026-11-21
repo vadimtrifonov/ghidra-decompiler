@@ -2,6 +2,7 @@
 // Argument: the tree's folder.
 //@category Export
 import ghidra.app.decompiler.DecompInterface;
+import ghidra.app.decompiler.DecompileOptions;
 import ghidra.app.decompiler.DecompileResults;
 import ghidra.app.script.GhidraScript;
 import ghidra.framework.Application;
@@ -45,6 +46,13 @@ public class ExportTree extends GhidraScript {
 
         long done = 0, failed = 0;
         DecompInterface decompiler = new DecompInterface();
+        // Without options the decompiler does not use Ghidra's settings, under which a read of read-only memory
+        // shows as its value. Such a value can make code look unreachable where the decompiler lost track of a
+        // call's arguments, so unreachable code stays in the C, under a constant condition.
+        DecompileOptions options = new DecompileOptions();
+        options.grabFromProgram(currentProgram);
+        options.setEliminateUnreachable(false);
+        decompiler.setOptions(options);
         if (!decompiler.openProgram(currentProgram)) {
             throw new IOException("the decompiler did not start: " + decompiler.getLastMessage());
         }
