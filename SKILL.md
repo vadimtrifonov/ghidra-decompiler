@@ -35,10 +35,8 @@ mise run decompiler -- locate "C:\Path\To\image.exe"
 | `interrupted` | The last run ended without finishing and without recording an error | `log` |
 | `absent` | No run has been started | |
 
-A file changed by an update is `absent` until it is prepared.
-
 The tree's folder is `<file name>-<file version>-<first 12 hex digits of the file's SHA-256>`.
-Only the last part decides which tree belongs to a file.
+Only the last part decides which tree belongs to a file, so a file changed by an update is `absent`.
 
 ## Prepare a tree
 
@@ -55,7 +53,9 @@ The tree then belongs to the unpacked copy, and `locate` reports the wrapped fil
 
 A run continues after the command, the agent, and its terminal have ended.
 To stop a run, end the process `pid`; Ghidra ends with it.
-Keep no shell or program inside the run's folder, where `log` is, or the run fails at its end.
+
+A run renames its folder, the one that holds `log`, when it finishes.
+A shell with that folder as its working directory, or a program with one of its files open, blocks the rename; the run waits ten minutes and then fails.
 
 | File | Functions | Analysis | Export | Memory at peak | Tree on disk |
 |---|---|---|---|---|---|
@@ -101,22 +101,35 @@ A function that more than four slots point to has the line `// referenced by <N>
 
 A slot can point to an address that has no function file.
 
-`ghidra` is the analysed Ghidra project `project.gpr`.
+`ghidra` is the analyzed Ghidra project `project.gpr`.
 
 ## Reading the C
 
-Names are those that Ghidra derives: imports, exports, RTTI class names, and recognized library functions.
-Every other function is `FUN_<address>`; `FUN_141963f20` is `functions\14196\141963f20.c`.
+Ghidra names imports, exports, and library functions that it recognizes: under 1% of the functions of the game executable above.
+A function without such a name is `FUN_<address>`; `FUN_141963f20` is `functions\14196\141963f20.c`.
 `thunk_FUN_<address>` is a function that only jumps to `FUN_<address>`; its own address is in `index.tsv`, and several thunks can have the same name.
-`DAT_<address>` and `PTR_<name>_<address>` are data at that address.
+`Unwind@<address>` and `Catch_All@<address>` are the exception cleanup and catch code of other functions; they are 0.1% of the functions of the game executable above and 48% of another's.
+
+`DAT_<address>` and `PTR_<name>_<address>` are data at that address; the tree does not hold what is there.
+`PTR_vftable_<address>` is a stored pointer to a vtable, such as the start of an object, and the name leaves the class out.
+The address that the file stores there is in `vtables.tsv`.
 A read of read-only data shows as the value instead; a float that the decompiler did not recognize shows as its bits, such as `0x3f800000` for 1.0.
 
+Parameter lists and return types are the decompiler's guesses.
+A call can show an argument that the function does not take, lack some or all of those it passes, or drop a value returned in a vector register.
+A function that ends in a jump to another function can hold that function's C as its own, without the `thunk_` name; its disassembly shows the jump.
 A condition shown as `if (true)` or `if (false)` is one that the decompiler judged constant, and the side not taken is code that it judged unreachable.
 The judgment is wrong where the decompiler lost track of what a call changes.
 
 An address has no function file when it lies inside a function or in code that Ghidra did not make a function.
-Disassemble such an address instead.
+The function that holds an address is the nearest entry at or below it in `index.tsv`; in the game executable above that fails for code in 17 of the 202,742 functions.
+The tree does not record where a function ends, so it cannot show that an address is in no function; disassemble the address to check.
 The file of a function that Ghidra could not decompile holds `// decompile failed:` and the reason in place of the C; disassemble it too.
+
+## Searching
+
+Search `functions` with `rg`.
+Over the 202,742 files of the game executable above, `rg` takes a few seconds and a recursive `Select-String` took 10 minutes.
 
 A text search for a function's name finds the functions that call it.
 It also finds their thunks, because a thunk's file holds the C of the function it jumps to.
