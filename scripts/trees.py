@@ -15,7 +15,7 @@ def root():
     if not value:
         raise ValueError(
             f"{ROOT_VARIABLE} is not set. Ask the user for a folder to keep decompilation trees in, "
-            f"then run: mise set --file mise.local.toml {ROOT_VARIABLE}=<folder>"
+            f"then run: mise set --global {ROOT_VARIABLE}=<folder>"
         )
     return Path(value)
 

@@ -18,7 +18,7 @@ All trees are kept in one folder, named by `GHIDRA_DECOMPILER_TREES`.
 Ask the user for the folder once and save it for this machine:
 
 ```powershell
-mise set --file mise.local.toml GHIDRA_DECOMPILER_TREES="D:\Path\To\Trees"
+mise set --global GHIDRA_DECOMPILER_TREES="D:\Path\To\Trees"
 ```
 
 ## Locate a tree
